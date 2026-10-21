@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Diagnóstico Vial de Sucumbíos</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .kpi-card { border-radius: 10px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card-header { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-primary mb-4 shadow">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🛣️ Dashboard Interactivo - Red Vial de Sucumbíos</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        
+        <!-- BARRA DE FILTROS -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label for="cantonSelect" class="form-label fw-bold">📍 Filtrar por Cantón:</label>
+                <select id="cantonSelect" class="form-select shadow-sm" onchange="actualizarDashboard()">
+                    <option value="TODOS">Todos los Cantones</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- TARJETAS DE INDICADORES (KPIs) -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-2">
+                <div class="card kpi-card bg-primary text-white text-center p-3">
+                    <h6>Longitud Total</h6>
+                    <h3 id="kpiTotal">0 km</h3>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card kpi-card bg-warning text-dark text-center p-3">
+                    <h6>Lastre</h6>
+                    <h3 id="kpiLastre">0 km</h3>
+                    <small id="pctLastre">0%</small>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card kpi-card bg-success text-white text-center p-3">
+                    <h6>Asfalto</h6>
+                    <h3 id="kpiAsfalto">0 km</h3>
+                    <small id="pctAsfalto">0%</small>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card kpi-card bg-secondary text-white text-center p-3">
+                    <h6>Tierra</h6>
+                    <h3 id="kpiTierra">0 km</h3>
+                    <small id="pctTierra">0%</small>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card kpi-card bg-info text-white text-center p-3">
+                    <h6>Adoquín</h6>
+                    <h3 id="kpiAdoquin">0 km</h3>
+                    <small id="pctAdoquin">0%</small>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card kpi-card bg-dark text-white text-center p-3">
+                    <h6>Puentes</h6>
+                    <h3 id="kpiPuentes">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS ESTADÍSTICOS -->
+        <div class="row mb-4">
+            <div class="col-md-5">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white">🥧 Distribución de Capa de Rodadura</div>
+                    <div class="card-body">
+                        <canvas id="chartDona"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-7">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white">📊 Kilometraje por Parroquia</div>
+                    <div class="card-body">
+                        <canvas id="chartBarras"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MATRIZ DE PROBLEMATICAS -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">📋 Matriz de Diagnóstico, Problemáticas y Propuestas</div>
+                    <div class="card-body table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Problemática</th>
+                                    <th>Potencialidades</th>
+                                    <th>Debilidades</th>
+                                    <th>Propuesta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaMatriz">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LÓGICA EN JAVASCRIPT -->
+    <script>
+        // Datos procesados desde el archivo Excel
+        const dataset = {
+            parroquias: [
+                {CANTON: "LAGO AGRIO", PARROQUIA: "NUEVA LOJA", LASTRE: 117.564, ASFALTO: 8.414, TIERRA: 6, ADOQUIN: 0},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "10 DE AGOSTO", LASTRE: 80.269, ASFALTO: 0.024, TIERRA: 2.4, ADOQUIN: 0},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "DURENO", LASTRE: 75.591, ASFALTO: 0.391, TIERRA: 0.948, ADOQUIN: 0},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "EL ENO", LASTRE: 178.468, ASFALTO: 5.145, TIERRA: 8.096, ADOQUIN: 1},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "GENERAL FARFAN", LASTRE: 209.883, ASFALTO: 7.12, TIERRA: 5.4, ADOQUIN: 0},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "JAMBELI", LASTRE: 84.836, ASFALTO: 0.526, TIERRA: 4.467, ADOQUIN: 0.385},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "PACAYACU", LASTRE: 172.14, ASFALTO: 23.48, TIERRA: 1.638, ADOQUIN: 0},
+                {CANTON: "LAGO AGRIO", PARROQUIA: "SANTA CECILIA", LASTRE: 161.55, ASFALTO: 9, TIERRA: 22.95, ADOQUIN: 0},
+                {CANTON: "CASCALES", PARROQUIA: "DORADO", LASTRE: 56.22, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "CASCALES", PARROQUIA: "NUEVA TRONCAL", LASTRE: 114.736, ASFALTO: 0, TIERRA: 16.83, ADOQUIN: 0},
+                {CANTON: "CASCALES", PARROQUIA: "SANTA ROSA", LASTRE: 34.2, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "CASCALES", PARROQUIA: "SEVILLA", LASTRE: 40.939, ASFALTO: 5.8, TIERRA: 0.57, ADOQUIN: 0},
+                {CANTON: "CUYABENO", PARROQUIA: "AGUAS NEGRAS", LASTRE: 23.9, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "CUYABENO", PARROQUIA: "TARAPOA", LASTRE: 255.7, ASFALTO: 0, TIERRA: 1, ADOQUIN: 0},
+                {CANTON: "LUMBAQUI", PARROQUIA: "EL REVENTADOR", LASTRE: 7.8, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "LUMBAQUI", PARROQUIA: "GONZALO PIZARRO", LASTRE: 68.83, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "LUMBAQUI", PARROQUIA: "LUMBAQUI", LASTRE: 46.138, ASFALTO: 0.5, TIERRA: 0.1, ADOQUIN: 0},
+                {CANTON: "LUMBAQUI", PARROQUIA: "PUERTO LIBRE", LASTRE: 21.23, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "PUTUMAYO", PARROQUIA: "PALMA ROJA", LASTRE: 53, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "PUTUMAYO", PARROQUIA: "PUERTO EL CARMEN", LASTRE: 47.78, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "PUTUMAYO", PARROQUIA: "SANSAHUARI", LASTRE: 93.46, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "PUTUMAYO", PARROQUIA: "SANTA ELENA", LASTRE: 52.661, ASFALTO: 0, TIERRA: 0.2, ADOQUIN: 0},
+                {CANTON: "SHUSHUFINDI", PARROQUIA: "LIMONCOCHA", LASTRE: 92.62, ASFALTO: 0, TIERRA: 0.9, ADOQUIN: 0},
+                {CANTON: "SHUSHUFINDI", PARROQUIA: "PAÑACOCHA", LASTRE: 30.15, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SHUSHUFINDI", PARROQUIA: "SAN PEDRO DE LOS COFANES", LASTRE: 53.82, ASFALTO: 3.11, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SHUSHUFINDI", PARROQUIA: "SAN ROQUE", LASTRE: 245.57, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SHUSHUFINDI", PARROQUIA: "SHUSHUFINDI", LASTRE: 338.61, ASFALTO: 25, TIERRA: 6.503, ADOQUIN: 0},
+                {CANTON: "SHUSHUFINDI", PARROQUIA: "SIETE DE JULIO", LASTRE: 164.429, ASFALTO: 4.894, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SUCUMBIOS ALTO", PARROQUIA: "LA BONITA", LASTRE: 10.51, ASFALTO: 0, TIERRA: 1.2, ADOQUIN: 0},
+                {CANTON: "SUCUMBIOS ALTO", PARROQUIA: "LA SOFIA", LASTRE: 15.3, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SUCUMBIOS ALTO", PARROQUIA: "EL PLAYON DE SAN FRANCISCO", LASTRE: 15.8, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SUCUMBIOS ALTO", PARROQUIA: "ROSA FLORIDA", LASTRE: 1.24, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0},
+                {CANTON: "SUCUMBIOS ALTO", PARROQUIA: "SANTA BARBARA", LASTRE: 8.05, ASFALTO: 0, TIERRA: 0, ADOQUIN: 0}
+            ],
+            puentes: {
+                "CASCALES": 21, "CUYABENO": 23, "GONZALO PIZARRO": 12, "LAGO AGRIO": 123,
+                "PUTUMAYO": 6, "SHUSHUFINDI": 50, "SUCUMBIOS ALTO": 1
+            },
+            matriz: [
+                {p: "FALTA DE MANTENIMIENTO VIAL RURAL EN TODA LA PROVINCIA", pot: "SECTORES AGROPRODUCTIVOS", d: "FALTA DE MANTENIMIENTO PERMANENTE", prop: "MANTENIMIENTO PERIODICO - 2 VECES POR AÑO"},
+                {p: "LLUVIAS INTENSAS DETERIORO TEMPRANO", pot: "AGUAS SUPERFICIALES", d: "FALTA DE TECNICAS CONSTRUCTIVAS PARA NUESTRO MEDIO", prop: "CONSTRUCCIÓN DE VIAS CON PERALTE FUERTE, LIMPIEZA PERMANENTE DE CUNETAS CON LA COMUNIDAD"},
+                {p: "VIAS A POZOS PETROLEROS EN LASTRE", pot: "CONVENIOS CON EMPRESAS PETROLERAS", d: "FALTA DE GESTIÓN", prop: "CONVENIOS PARA ASFALTAS TODAS LAS VIAS DE LA PRODUCCIÓN PETROLERA"},
+                {p: "SECTORES TURISTICOS CON ACCESOS EN MAL ESTADO", pot: "BALNEARIOS, GASTRONOMIA, RUTAS ECOLOGICAS, CENTROS TURISCOS.", d: "FALTA DE PUBLICIDAD Y SEÑALETICA TURISTICA", prop: "VIAS TURISTICAS ASFALTADAS, SEÑALIZADAS, ARBORIZADAS"},
+                {p: "SECTORES PRODUCTIVOS SIN BUENA ACCESIBILIDAD VIAL", pot: "ZONAS GANADERAS, ZONAS AGRICOLAS", d: "MINERIA ILEGAL", prop: "EJES VIALES AGROPRODUCTIVOS CON ASFALTO"},
+                {p: "FALTA DE SEÑALETICA EN COMUNIDADES", pot: "RECINTOS EN CRECIMIENTO PERMANENTE", d: "TURISTICAS Y POBLACIÓN SIN UBICACIÓN", prop: "SEÑALITELICA INFORMATIVA Y IDENTIFICACIÓN DE COMUNIDADES Y RECINTOS"}
+            ]
+        };
+
+        let chartDona = null;
+        let chartBarras = null;
+
+        function inicializar() {
+            // Llenar selector de cantones
+            const select = document.getElementById('cantonSelect');
+            const cantones = [...new Set(dataset.parroquias.map(p => p.CANTON))].sort();
+            cantones.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                select.appendChild(opt);
+            });
+
+            // Llenar tabla de matriz
+            const tbody = document.getElementById('tablaMatriz');
+            dataset.matriz.forEach(m => {
+                tbody.innerHTML += `<tr>
+                    <td><strong>${m.p}</strong></td>
+                    <td>${m.pot}</td>
+                    <td><span class="badge bg-danger text-wrap">${m.d}</span></td>
+                    <td><span class="badge bg-success text-wrap">${m.prop}</span></td>
+                </tr>`;
+            });
+
+            actualizarDashboard();
+        }
+
+        function actualizarDashboard() {
+            const cantonSel = document.getElementById('cantonSelect').value;
+            let filtrados = dataset.parroquias;
+
+            if (cantonSel !== "TODOS") {
+                filtrados = dataset.parroquias.filter(p => p.CANTON === cantonSel);
+            }
+
+            // Calculo de Totales
+            const totalLastre = filtrados.reduce((a, b) => a + b.LASTRE, 0);
+            const totalAsfalto = filtrados.reduce((a, b) => a + b.ASFALTO, 0);
+            const totalTierra = filtrados.reduce((a, b) => a + b.TIERRA, 0);
+            const totalAdoquin = filtrados.reduce((a, b) => a + b.ADOQUIN, 0);
+            const totalKm = totalLastre + totalAsfalto + totalTierra + totalAdoquin;
+
+            // Actualizar KPIs
+            document.getElementById('kpiTotal').textContent = totalKm.toFixed(2) + ' km';
+            document.getElementById('kpiLastre').textContent = totalLastre.toFixed(2) + ' km';
+            document.getElementById('kpiAsfalto').textContent = totalAsfalto.toFixed(2) + ' km';
+            document.getElementById('kpiTierra').textContent = totalTierra.toFixed(2) + ' km';
+            document.getElementById('kpiAdoquin').textContent = totalAdoquin.toFixed(2) + ' km';
+
+            document.getElementById('pctLastre').textContent = totalKm ? ((totalLastre/totalKm)*100).toFixed(1) + '%' : '0%';
+            document.getElementById('pctAsfalto').textContent = totalKm ? ((totalAsfalto/totalKm)*100).toFixed(1) + '%' : '0%';
+            document.getElementById('pctTierra').textContent = totalKm ? ((totalTierra/totalKm)*100).toFixed(1) + '%' : '0%';
+            document.getElementById('pctAdoquin').textContent = totalAdoquin ? ((totalAdoquin/totalKm)*100).toFixed(1) + '%' : '0%';
+
+            // Puentes
+            let numPuentes = 0;
+            if (cantonSel === "TODOS") {
+                numPuentes = Object.values(dataset.puentes).reduce((a, b) => a + b, 0);
+            } else {
+                numPuentes = dataset.puentes[cantonSel] || 0;
+            }
+            document.getElementById('kpiPuentes').textContent = numPuentes;
+
+            // Renderizar Gráficos
+            renderDona([totalLastre, totalAsfalto, totalTierra, totalAdoquin]);
+            renderBarras(filtrados);
+        }
+
+        function renderDona(datos) {
+            const ctx = document.getElementById('chartDona').getContext('2d');
+            if (chartDona) chartDona.destroy();
+
+            chartDona = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Lastre', 'Asfalto', 'Tierra', 'Adoquín'],
+                    datasets: [{
+                        data: datos,
+                        backgroundColor: ['#ffc107', '#198754', '#6c757d', '#0dcaf0']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        function renderBarras(filtrados) {
+            const ctx = document.getElementById('chartBarras').getContext('2d');
+            if (chartBarras) chartBarras.destroy();
+
+            chartBarras = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: filtrados.map(p => p.PARROQUIA),
+                    datasets: [
+                        { label: 'Lastre', data: filtrados.map(p => p.LASTRE), backgroundColor: '#ffc107' },
+                        { label: 'Asfalto', data: filtrados.map(p => p.ASFALTO), backgroundColor: '#198754' },
+                        { label: 'Tierra', data: filtrados.map(p => p.TIERRA), backgroundColor: '#6c757d' },
+                        { label: 'Adoquín', data: filtrados.map(p => p.ADOQUIN), backgroundColor: '#0dcaf0' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { x: { stacked: true }, y: { stacked: true } },
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        window.onload = inicializar;
+    </script>
+</body>
+</html>
